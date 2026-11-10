@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MessageList from './components/MessageList';
 import Composer from './components/Composer';
+import ConfirmDialog from './components/ConfirmDialog';
 
 const STORAGE_KEY = 'local-ai-chat:conversations';
 const DEFAULT_MODEL = 'qwen3.5:4b';
@@ -49,8 +50,10 @@ export default function App() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [health, setHealth] = useState({ status: 'checking', model: DEFAULT_MODEL, modelReady: true });
   const lastFailedMessage = useRef('');
+  const abortRef = useRef(null);
 
   const activeConversation = conversations.find((item) => item.id === activeId) || null;
   const messages = activeConversation?.messages ?? [];
@@ -97,6 +100,9 @@ export default function App() {
     setPending(true);
     setError('');
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -104,6 +110,7 @@ export default function App() {
         body: JSON.stringify({
           messages: requestMessages.map(({ role, content }) => ({ role, content })),
         }),
+        signal: controller.signal,
       });
       const data = await response.json().catch(() => ({}));
 
@@ -122,6 +129,8 @@ export default function App() {
         prev.status === 'online' ? prev : { ...prev, status: 'online', modelReady: true },
       );
     } catch (err) {
+      // 用户主动停止生成时不提示错误
+      if (err.name === 'AbortError') return;
       const message =
         err instanceof TypeError
           ? '无法连接到后端服务（http://localhost:3001），请确认后端已启动。'
@@ -129,8 +138,13 @@ export default function App() {
       setError(message);
       checkHealth();
     } finally {
+      abortRef.current = null;
       setPending(false);
     }
+  }
+
+  function stopReply() {
+    abortRef.current?.abort();
   }
 
   async function sendMessage(rawText) {
@@ -178,12 +192,19 @@ export default function App() {
     setSidebarOpen(false);
   }
 
-  function handleDeleteConversation(id) {
+  function requestDeleteConversation(id) {
+    setDeleteTarget(conversations.find((item) => item.id === id) || null);
+  }
+
+  function confirmDeleteConversation() {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
     setConversations((prev) => prev.filter((item) => item.id !== id));
     if (id === activeId) {
       setActiveId(null);
       setError('');
     }
+    setDeleteTarget(null);
   }
 
   function handleRetry() {
@@ -212,7 +233,7 @@ export default function App() {
         activeId={activeId}
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
-        onDelete={handleDeleteConversation}
+        onDelete={requestDeleteConversation}
         onClose={() => setSidebarOpen(false)}
       />
 
@@ -222,6 +243,16 @@ export default function App() {
           className="sidebar-overlay"
           aria-label="关闭侧边栏"
           onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="确定删除对话?"
+          description="删除后，聊天记录将不可恢复。"
+          confirmText="删除"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDeleteConversation}
         />
       )}
 
@@ -286,6 +317,7 @@ export default function App() {
                     variant="welcome"
                     pending={pending}
                     onSend={sendMessage}
+                    onStop={stopReply}
                     placeholder="有问题尽管问"
                   />
                 </div>
@@ -332,7 +364,12 @@ export default function App() {
                   onCheck={checkHealth}
                 />
               )}
-              <Composer pending={pending} onSend={sendMessage} placeholder="有问题尽管问" />
+              <Composer
+                pending={pending}
+                onSend={sendMessage}
+                onStop={stopReply}
+                placeholder="有问题尽管问"
+              />
             </div>
           </div>
         )}

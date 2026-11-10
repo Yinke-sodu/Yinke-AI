@@ -1,15 +1,67 @@
 import { useRef, useState } from 'react';
 
-export default function Composer({ onSend, pending, placeholder, variant = 'docked' }) {
+const TEXT_EXTENSIONS = new Set([
+  'txt', 'md', 'markdown', 'json', 'csv', 'tsv', 'log', 'xml', 'yml', 'yaml',
+  'js', 'jsx', 'ts', 'tsx', 'css', 'html', 'py', 'java', 'go', 'rs', 'sh',
+  'sql', 'toml', 'ini', 'conf',
+]);
+const MAX_TEXT_SIZE = 1024 * 1024;
+
+export default function Composer({ onSend, onStop, pending, placeholder, variant = 'docked' }) {
   const [value, setValue] = useState('');
+  const [activeTools, setActiveTools] = useState({});
+  const [attachments, setAttachments] = useState([]);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const composingRef = useRef(false);
+
+  async function handleFiles(event) {
+    const picked = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (picked.length === 0) return;
+
+    const loaded = await Promise.all(
+      picked.map(async (file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+        const readable = TEXT_EXTENSIONS.has(extension) && file.size <= MAX_TEXT_SIZE;
+        let content = null;
+        if (readable) {
+          try {
+            content = await file.text();
+          } catch {
+            content = null;
+          }
+        }
+        return {
+          id: `${file.name}-${file.size}-${file.lastModified}`,
+          name: file.name,
+          content,
+        };
+      }),
+    );
+
+    setAttachments((prev) => [...prev, ...loaded]);
+  }
+
+  function removeAttachment(id) {
+    setAttachments((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function buildMessage(text) {
+    const blocks = attachments.map((item) =>
+      item.content === null
+        ? `【附件：${item.name}】（未读取内容）`
+        : `【附件：${item.name}】\n\`\`\`\n${item.content}\n\`\`\``,
+    );
+    return [text, ...blocks].filter(Boolean).join('\n\n');
+  }
 
   function submit() {
     const text = value.trim();
-    if (!text || pending) return;
-    onSend(text);
+    if ((!text && attachments.length === 0) || pending) return;
+    onSend(buildMessage(text));
     setValue('');
+    setAttachments([]);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -24,6 +76,33 @@ export default function Composer({ onSend, pending, placeholder, variant = 'dock
 
   return (
     <div className={`composer composer-${variant}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="composer-file-input"
+        onChange={handleFiles}
+      />
+
+      {attachments.length > 0 && (
+        <div className="composer-attachments">
+          {attachments.map((item) => (
+            <span className="attachment-chip" key={item.id}>
+              <FileIcon />
+              <span className="attachment-name">{item.name}</span>
+              <button
+                type="button"
+                className="attachment-remove"
+                aria-label={`移除附件 ${item.name}`}
+                onClick={() => removeAttachment(item.id)}
+              >
+                <CloseIcon />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <textarea
         ref={textareaRef}
         className="composer-input"
@@ -43,21 +122,33 @@ export default function Composer({ onSend, pending, placeholder, variant = 'dock
 
       <div className="composer-toolbar">
         <div className="composer-tools">
-          <button type="button" className="tool-square" aria-label="添加内容">
+          <button
+            type="button"
+            className="tool-square"
+            aria-label="添加文件"
+            title="上传本地文件"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <PlusIcon />
           </button>
-          <button type="button" className="tool-chip">
-            <ThinkIcon />
-            <span>思考</span>
-          </button>
-          <button type="button" className="tool-chip">
-            <GlobeIcon />
-            <span>联网</span>
-          </button>
-          <button type="button" className="tool-chip">
-            <SkillIcon />
-            <span>技能</span>
-          </button>
+          {[
+            { key: 'think', label: '思考', icon: <ThinkIcon /> },
+            { key: 'web', label: '联网', icon: <GlobeIcon /> },
+            { key: 'skill', label: '技能', icon: <SkillIcon /> },
+          ].map((tool) => (
+            <button
+              key={tool.key}
+              type="button"
+              className={`tool-chip ${activeTools[tool.key] ? 'active' : ''}`}
+              aria-pressed={Boolean(activeTools[tool.key])}
+              onClick={() =>
+                setActiveTools((prev) => ({ ...prev, [tool.key]: !prev[tool.key] }))
+              }
+            >
+              {tool.icon}
+              <span>{tool.label}</span>
+            </button>
+          ))}
         </div>
 
         <div className="composer-actions">
@@ -66,12 +157,13 @@ export default function Composer({ onSend, pending, placeholder, variant = 'dock
           </button>
           <button
             type="button"
-            className="send-button"
-            onClick={submit}
-            disabled={!value.trim() || pending}
-            aria-label="发送消息"
+            className={`send-button ${pending ? 'send-button-stop' : ''}`}
+            onClick={pending ? onStop : submit}
+            disabled={!pending && !value.trim() && attachments.length === 0}
+            aria-label={pending ? '停止生成' : '发送消息'}
+            title={pending ? '停止生成' : '发送'}
           >
-            {pending ? <span className="send-spinner" /> : <SendIcon />}
+            {pending ? <StopIcon /> : <SendIcon />}
           </button>
         </div>
       </div>
@@ -128,6 +220,31 @@ function SendIcon() {
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 19V5" />
       <path d="M6 11l6-6 6 6" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 10 10" width="10" height="10" fill="currentColor" stroke="none">
+      <rect x="0" y="0" width="10" height="10" rx="2.5" />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M6 6l12 12M18 6L6 18" />
     </svg>
   );
 }

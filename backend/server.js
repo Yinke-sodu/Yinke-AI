@@ -11,11 +11,17 @@ const SYSTEM_PROMPT =
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '8mb' }));
 
 async function ollamaFetch(path, options = {}, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const external = options.signal;
+  const forwardAbort = () => controller.abort();
+  if (external) {
+    if (external.aborted) controller.abort();
+    else external.addEventListener('abort', forwardAbort, { once: true });
+  }
   try {
     return await fetch(`${OLLAMA_HOST}${path}`, {
       ...options,
@@ -23,6 +29,7 @@ async function ollamaFetch(path, options = {}, timeoutMs = 5000) {
     });
   } finally {
     clearTimeout(timer);
+    external?.removeEventListener('abort', forwardAbort);
   }
 }
 
@@ -89,6 +96,12 @@ app.post('/api/chat', async (req, res) => {
     options: { temperature: 0.7 },
   };
 
+  // 前端中断请求（停止生成）时，同步中断对 Ollama 的调用
+  const clientAbort = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) clientAbort.abort();
+  });
+
   try {
     const response = await ollamaFetch(
       '/api/chat',
@@ -96,6 +109,7 @@ app.post('/api/chat', async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: clientAbort.signal,
       },
       REQUEST_TIMEOUT,
     );
@@ -124,6 +138,7 @@ app.post('/api/chat', async (req, res) => {
       evalCount: data.eval_count ?? null,
     });
   } catch (error) {
+    if (clientAbort.signal.aborted) return;
     if (error.name === 'AbortError') {
       return res.status(504).json({ error: '模型响应超时，请稍后重试。' });
     }
