@@ -60,7 +60,7 @@ export default function Sidebar({
               className="conversation-button"
               onClick={() => onSelect(conversation.id)}
             >
-              <img className="conversation-avatar" src="/assets/robot.png" alt="" />
+              <img className="conversation-avatar" src="/assets/conversation-avatar.png" alt="" />
               <span className="conversation-title">{conversation.title}</span>
             </button>
             <button
