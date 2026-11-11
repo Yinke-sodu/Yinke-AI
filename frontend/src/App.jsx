@@ -3,9 +3,15 @@ import Sidebar from './components/Sidebar';
 import MessageList from './components/MessageList';
 import Composer from './components/Composer';
 import ConfirmDialog from './components/ConfirmDialog';
+import AssistantPage, { ASSISTANTS } from './components/AssistantPage';
 
 const STORAGE_KEY = 'local-ai-chat:conversations';
 const DEFAULT_MODEL = 'qwen3.5:4b';
+const ASSISTANT_SUGGESTIONS = [
+  '我的 NAS 磁盘还剩多少空间？',
+  '帮我看看现在有哪些 Docker 容器在运行。',
+  '帮我在文件里搜一下文件名包含「发票」的文档。',
+];
 
 function createId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -50,6 +56,8 @@ export default function App() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [page, setPage] = useState('chat');
+  const [draftAssistant, setDraftAssistant] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [health, setHealth] = useState({ status: 'checking', model: DEFAULT_MODEL, modelReady: true });
   const lastFailedMessage = useRef('');
@@ -57,6 +65,7 @@ export default function App() {
 
   const activeConversation = conversations.find((item) => item.id === activeId) || null;
   const messages = activeConversation?.messages ?? [];
+  const emptyAssistant = activeConversation?.assistant || draftAssistant;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
@@ -158,7 +167,7 @@ export default function App() {
     let baseMessages = messages;
 
     if (!conversationId) {
-      const conversation = createConversation();
+      const conversation = { ...createConversation(), assistant: draftAssistant || undefined };
       conversationId = conversation.id;
       baseMessages = [];
       setConversations((prev) => [conversation, ...prev]);
@@ -182,12 +191,24 @@ export default function App() {
 
   function handleNewChat() {
     setActiveId(null);
+    setDraftAssistant(null);
+    setPage('chat');
     setError('');
     setSidebarOpen(false);
   }
 
   function handleSelectConversation(id) {
     setActiveId(id);
+    setDraftAssistant(null);
+    setPage('chat');
+    setError('');
+    setSidebarOpen(false);
+  }
+
+  function handleOpenAssistantChat(assistant) {
+    setActiveId(null);
+    setDraftAssistant(assistant);
+    setPage('chat');
     setError('');
     setSidebarOpen(false);
   }
@@ -234,6 +255,10 @@ export default function App() {
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
         onDelete={requestDeleteConversation}
+        onOpenAssistant={() => {
+          setPage('assistant');
+          setSidebarOpen(false);
+        }}
         onClose={() => setSidebarOpen(false)}
       />
 
@@ -267,7 +292,7 @@ export default function App() {
             <MenuIcon />
           </button>
 
-          {activeConversation && (
+          {page === 'chat' && activeConversation && (
             <span className="topbar-title" title={activeConversation.title}>
               {activeConversation.title}
             </span>
@@ -292,8 +317,64 @@ export default function App() {
           </div>
         </header>
 
-        <div className="chat-scroll">
+        {page === 'assistant' ? (
+          <AssistantPage onOpen={handleOpenAssistantChat} />
+        ) : (
+          <>
+            <div className="chat-scroll">
           {isEmpty ? (
+            emptyAssistant ? (
+              <section className="assistant-hello">
+                <div className="assistant-hello-inner">
+                  <div className="assistant-hello-head">
+                    <div
+                      className="assistant-hello-avatar"
+                      style={{ background: emptyAssistant.iconBg }}
+                    >
+                      <img src={emptyAssistant.icon} alt="" />
+                    </div>
+                    <div className="assistant-hello-text">
+                      <span className="welcome-eyebrow">你好, 我是GEAK AI</span>
+                      <h1 className="welcome-title">我能帮你做什么</h1>
+                    </div>
+                  </div>
+
+                  <div className="welcome-composer">
+                    {error && (
+                      <ErrorBanner
+                        error={error}
+                        pending={pending}
+                        onRetry={handleRetry}
+                        onCheck={checkHealth}
+                      />
+                    )}
+                    <Composer
+                      variant="welcome"
+                      pending={pending}
+                      onSend={sendMessage}
+                      onStop={stopReply}
+                      placeholder="有问题尽管问"
+                    />
+                  </div>
+
+                  <section className="assistant-recommend">
+                    <span className="assistant-recommend-label">为你推荐</span>
+                    <div className="assistant-recommend-list">
+                      {ASSISTANT_SUGGESTIONS.map((question) => (
+                        <button
+                          key={question}
+                          type="button"
+                          className="assistant-recommend-chip"
+                          onClick={() => sendMessage(question)}
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </section>
+            ) : (
             <section className="welcome">
               <div className="welcome-inner">
                 <div className="welcome-head">
@@ -325,27 +406,43 @@ export default function App() {
                 <section className="explore">
                   <div className="explore-head">
                     <h2 className="explore-title">NAS管家</h2>
-                    <button type="button" className="explore-more">
+                    <button
+                      type="button"
+                      className="explore-more"
+                      onClick={() => {
+                        setPage('assistant');
+                        setDraftAssistant(null);
+                      }}
+                    >
                       <span>探索更多</span>
                       <ChevronRightIcon />
                     </button>
                   </div>
-                  <div className="explore-grid">
-                    {[0, 1, 2, 3].map((index) => (
-                      <article className="explore-card" key={index}>
-                        <div className="explore-card-icon">
-                          <img src="/assets/robot.png" alt="" />
-                        </div>
-                        <div className="explore-card-body">
-                          <h3>智能管家</h3>
-                          <p>管理你的 NAS：查状态、管文件、管相册。管理你的 NAS：查状态、管文件、管相册。</p>
-                        </div>
-                      </article>
+                  <div className="assistant-grid">
+                    {ASSISTANTS.slice(0, 4).map((item) => (
+                      <button
+                        type="button"
+                        className="assistant-card"
+                        key={item.key}
+                        onClick={() => handleOpenAssistantChat(item)}
+                      >
+                        <span
+                          className="assistant-card-icon"
+                          style={{ background: item.iconBg }}
+                        >
+                          <img src={item.icon} alt="" />
+                        </span>
+                        <span className="assistant-card-body">
+                          <span className="assistant-card-title">{item.title}</span>
+                          <span className="assistant-card-desc">{item.desc}</span>
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </section>
               </div>
             </section>
+            )
           ) : (
             <div className="chat-container">
               <MessageList messages={messages} pending={pending} />
@@ -372,6 +469,8 @@ export default function App() {
               />
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>

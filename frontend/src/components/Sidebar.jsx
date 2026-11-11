@@ -5,6 +5,7 @@ export default function Sidebar({
   onNewChat,
   onSelect,
   onDelete,
+  onOpenAssistant,
   onClose,
 }) {
   const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -32,7 +33,7 @@ export default function Sidebar({
       </button>
 
       <nav className="side-nav">
-        <button type="button" className="side-nav-item active">
+        <button type="button" className="side-nav-item active" onClick={onOpenAssistant}>
           <BulbIcon />
           <span>个人助手</span>
           <ChevronRightIcon />
@@ -47,9 +48,6 @@ export default function Sidebar({
       <div className="history-label">问答历史</div>
 
       <nav className="conversation-list">
-        {sorted.length === 0 && (
-          <p className="conversation-empty">还没有对话记录，开始提问吧。</p>
-        )}
         {sorted.map((conversation) => (
           <div
             key={conversation.id}
@@ -60,7 +58,11 @@ export default function Sidebar({
               className="conversation-button"
               onClick={() => onSelect(conversation.id)}
             >
-              <img className="conversation-avatar" src="/assets/conversation-avatar.png" alt="" />
+              <img
+                className="conversation-avatar"
+                src={conversation.assistant?.icon || '/assets/conversation-avatar.png'}
+                alt=""
+              />
               <span className="conversation-title">{conversation.title}</span>
             </button>
             <button
