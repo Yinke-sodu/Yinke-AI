@@ -194,7 +194,6 @@ export default function Composer({ onSend, onStop, pending, placeholder, variant
                 }}
               >
                 <span className="chip-icon">{tool.icon}</span>
-                <XIcon className="chip-x" size={14} strokeWidth={1.6} />
                 <span>
                   {tool.key === 'skill' ? selectedSkill || tool.label : tool.label}
                 </span>
@@ -347,7 +346,7 @@ function SendIcon() {
 }
 
 function StopIcon() {
-  return <Square size={10} fill="currentColor" strokeWidth={0} />;
+  return <Square size={13} fill="currentColor" strokeWidth={0} />;
 }
 
 function FileIcon() {

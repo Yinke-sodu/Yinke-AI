@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MessageList from './components/MessageList';
 import Composer from './components/Composer';
 import ConfirmDialog from './components/ConfirmDialog';
+import Toast from './components/Toast';
 import AssistantPage from './components/AssistantPage';
 
 const STORAGE_KEY = 'local-ai-chat:conversations';
@@ -62,8 +63,18 @@ export default function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const [health, setHealth] = useState({ status: 'checking', model: DEFAULT_MODEL, modelReady: true });
+  const [toastVisible, setToastVisible] = useState(false);
   const lastFailedMessage = useRef('');
   const abortRef = useRef(null);
+  const toastTimerRef = useRef(null);
+
+  function showToast() {
+    setToastVisible(true);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+  }
+
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   const activeConversation = conversations.find((item) => item.id === activeId) || null;
   const messages = activeConversation?.messages ?? [];
@@ -139,6 +150,7 @@ export default function App() {
       setHealth((prev) =>
         prev.status === 'online' ? prev : { ...prev, status: 'online', modelReady: true },
       );
+      showToast();
     } catch (err) {
       // 用户主动停止生成时不提示错误
       if (err.name === 'AbortError') return;
@@ -189,6 +201,19 @@ export default function App() {
     }));
 
     await requestReply(conversationId, nextMessages);
+  }
+
+  async function handleRegenerate(index) {
+    if (pending || !activeConversation) return;
+    const target = messages[index];
+    if (!target || target.role !== 'user') return;
+
+    const truncated = messages.slice(0, index + 1);
+    updateConversation(activeConversation.id, (item) => ({
+      ...item,
+      messages: truncated,
+    }));
+    await requestReply(activeConversation.id, truncated);
   }
 
   function handleNewChat() {
@@ -447,7 +472,7 @@ export default function App() {
             )
           ) : (
             <div className="chat-container">
-              <MessageList messages={messages} pending={pending} />
+              <MessageList messages={messages} pending={pending} onRegenerate={handleRegenerate} />
             </div>
           )}
         </div>
@@ -478,6 +503,8 @@ export default function App() {
           </>
         )}
       </main>
+
+      <Toast message="AI内容回复生成完成" visible={toastVisible} />
     </div>
   );
 }

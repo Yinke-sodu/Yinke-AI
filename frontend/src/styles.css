@@ -218,9 +218,9 @@ button:disabled {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
-  color: #3c3c40;
+  color: #aeadb5;
   cursor: pointer;
   opacity: 0;
   visibility: hidden;
@@ -918,7 +918,7 @@ button:disabled {
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   height: 28px;
   opacity: 0;
   visibility: hidden;
@@ -953,6 +953,14 @@ button:disabled {
   white-space: nowrap;
 }
 
+.message-user .message-time {
+  margin-right: 4px;
+}
+
+.message-assistant .message-time {
+  margin-left: 4px;
+}
+
 .message-copy {
   display: grid;
   place-items: center;
@@ -969,6 +977,11 @@ button:disabled {
 .message-copy:hover {
   background: #eeeef2;
   color: var(--text-body);
+}
+
+.message-copy:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .message-assistant .message-body {
@@ -1342,7 +1355,7 @@ button:disabled {
   align-items: center;
   gap: 16px;
   padding-top: 12px;
-  border-top: 1px solid #e6e6eb;
+  border-top: 1px solid #f4f4f7;
 }
 
 .context-progress.open .context-popover-detail {
@@ -1395,7 +1408,7 @@ button:disabled {
   width: 1px;
   height: 54px;
   flex-shrink: 0;
-  background: #e6e6eb;
+  background: #f4f4f7;
 }
 
 .context-popover-total {
@@ -1439,20 +1452,6 @@ button:disabled {
 }
 
 .tool-chip .chip-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tool-chip .chip-x {
-  display: none;
-}
-
-.tool-chip.active:hover .chip-icon {
-  display: none;
-}
-
-.tool-chip.active:hover .chip-x {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1947,4 +1946,44 @@ button:disabled {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 17px;
+  border: 1px solid #f4f4f7;
+  border-radius: 8px;
+  background: #fffefe;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.toast-text {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #000000;
+  white-space: nowrap;
 }

@@ -70,7 +70,7 @@ export default function AssistantPage({ onOpen }) {
       <div className="assistant-page">
         <header className="assistant-head">
           <span className="assistant-eyebrow">你好, 我是GEAK AI</span>
-          <h1 className="assistant-title">这里是NAS 智能管家助手</h1>
+          <h1 className="assistant-title">这里是 NAS 智能管家助手</h1>
         </header>
 
         <section className="assistant-grid">

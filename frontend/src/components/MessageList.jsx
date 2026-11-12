@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, RotateCw } from 'lucide-react';
 
 function formatTime(timestamp) {
   if (!timestamp) return '';
@@ -133,7 +133,7 @@ function MarkdownText({ text }) {
   );
 }
 
-export default function MessageList({ messages, pending }) {
+export default function MessageList({ messages, pending, onRegenerate }) {
   const bottomRef = useRef(null);
   const [copiedKey, setCopiedKey] = useState(null);
 
@@ -179,8 +179,20 @@ export default function MessageList({ messages, pending }) {
                   title={copiedKey === key ? '已复制' : '复制'}
                   onClick={() => handleCopy(key, message.content)}
                 >
-                  {copiedKey === key ? <CheckIcon /> : <CopyIcon />}
+                  {copiedKey === key ? <Check size={14} strokeWidth={1.8} /> : <Copy size={14} strokeWidth={1.6} />}
                 </button>
+                {message.role === 'user' && onRegenerate && (
+                  <button
+                    type="button"
+                    className="message-copy"
+                    aria-label="重新生成回复"
+                    title="重新生成回复"
+                    disabled={pending}
+                    onClick={() => onRegenerate(index)}
+                  >
+                    <RotateCw size={14} strokeWidth={1.6} />
+                  </button>
+                )}
               </div>
             </div>
           </article>
@@ -204,10 +216,3 @@ export default function MessageList({ messages, pending }) {
   );
 }
 
-function CopyIcon() {
-  return <Copy size={14} strokeWidth={1.6} />;
-}
-
-function CheckIcon() {
-  return <Check size={14} strokeWidth={2} />;
-}
