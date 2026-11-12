@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { CircleAlert } from 'lucide-react';
 
 export default function ConfirmDialog({ title, description, confirmText, onCancel, onConfirm }) {
   useEffect(() => {
@@ -44,11 +45,5 @@ export default function ConfirmDialog({ title, description, confirmText, onCance
 }
 
 function WarningIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
-      <circle cx="10" cy="10" r="8.333" fill="#F5B84E" />
-      <path d="M10 5.8v5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="10" cy="13.9" r="0.95" fill="#fff" />
-    </svg>
-  );
+  return <CircleAlert size={20} strokeWidth={1.8} color="#F5B84E" />;
 }

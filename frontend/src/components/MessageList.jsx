@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Copy, Check } from 'lucide-react';
 
 function formatTime(timestamp) {
   if (!timestamp) return '';
@@ -204,18 +205,9 @@ export default function MessageList({ messages, pending }) {
 }
 
 function CopyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="11" height="11" rx="2" />
-      <path d="M15 5.5A2.5 2.5 0 0012.5 3H6a2 2 0 00-2 2v7.5" />
-    </svg>
-  );
+  return <Copy size={14} strokeWidth={1.6} />;
 }
 
 function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12.5l4.5 4.5L19 7" />
-    </svg>
-  );
+  return <Check size={14} strokeWidth={2} />;
 }

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { Menu, Bell, CircleAlert } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MessageList from './components/MessageList';
 import Composer from './components/Composer';
 import ConfirmDialog from './components/ConfirmDialog';
-import AssistantPage, { ASSISTANTS } from './components/AssistantPage';
+import AssistantPage from './components/AssistantPage';
 
 const STORAGE_KEY = 'local-ai-chat:conversations';
 const DEFAULT_MODEL = 'qwen3.5:4b';
@@ -59,6 +60,7 @@ export default function App() {
   const [page, setPage] = useState('chat');
   const [draftAssistant, setDraftAssistant] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const [health, setHealth] = useState({ status: 'checking', model: DEFAULT_MODEL, modelReady: true });
   const lastFailedMessage = useRef('');
   const abortRef = useRef(null);
@@ -228,6 +230,19 @@ export default function App() {
     setDeleteTarget(null);
   }
 
+  function requestClearAll() {
+    if (conversations.length === 0) return;
+    setClearAllConfirm(true);
+  }
+
+  function confirmClearAll() {
+    setConversations([]);
+    setActiveId(null);
+    setDraftAssistant(null);
+    setError('');
+    setClearAllConfirm(false);
+  }
+
   function handleRetry() {
     if (pending) return;
     const lastMessage = messages[messages.length - 1];
@@ -255,6 +270,7 @@ export default function App() {
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
         onDelete={requestDeleteConversation}
+        onClearAll={requestClearAll}
         onOpenAssistant={() => {
           setPage('assistant');
           setSidebarOpen(false);
@@ -281,6 +297,16 @@ export default function App() {
         />
       )}
 
+      {clearAllConfirm && (
+        <ConfirmDialog
+          title="确定清空全部对话?"
+          description="清空后，所有聊天记录将不可恢复。"
+          confirmText="全部清除"
+          onCancel={() => setClearAllConfirm(false)}
+          onConfirm={confirmClearAll}
+        />
+      )}
+
       <main className="main">
         <header className="topbar">
           <button
@@ -294,6 +320,14 @@ export default function App() {
 
           {page === 'chat' && activeConversation && (
             <span className="topbar-title" title={activeConversation.title}>
+              {activeConversation.assistant && (
+                <img
+                  className="topbar-assistant-avatar"
+                  src={activeConversation.assistant.icon}
+                  alt=""
+                  style={{ background: activeConversation.assistant.iconBg }}
+                />
+              )}
               {activeConversation.title}
             </span>
           )}
@@ -334,7 +368,7 @@ export default function App() {
                       <img src={emptyAssistant.icon} alt="" />
                     </div>
                     <div className="assistant-hello-text">
-                      <span className="welcome-eyebrow">你好, 我是GEAK AI</span>
+                      <span className="welcome-eyebrow">你好, 我是{emptyAssistant.title}</span>
                       <h1 className="welcome-title">我能帮你做什么</h1>
                     </div>
                   </div>
@@ -353,6 +387,9 @@ export default function App() {
                       pending={pending}
                       onSend={sendMessage}
                       onStop={stopReply}
+                      messages={activeConversation?.messages || []}
+                      modelName={health.model}
+                      modelOnline={health.status === 'online' && health.modelReady}
                       placeholder="有问题尽管问"
                     />
                   </div>
@@ -399,47 +436,12 @@ export default function App() {
                     pending={pending}
                     onSend={sendMessage}
                     onStop={stopReply}
+                    messages={activeConversation?.messages || []}
+                    modelName={health.model}
+                    modelOnline={health.status === 'online' && health.modelReady}
                     placeholder="有问题尽管问"
                   />
                 </div>
-
-                <section className="explore">
-                  <div className="explore-head">
-                    <h2 className="explore-title">NAS管家</h2>
-                    <button
-                      type="button"
-                      className="explore-more"
-                      onClick={() => {
-                        setPage('assistant');
-                        setDraftAssistant(null);
-                      }}
-                    >
-                      <span>探索更多</span>
-                      <ChevronRightIcon />
-                    </button>
-                  </div>
-                  <div className="assistant-grid">
-                    {ASSISTANTS.slice(0, 4).map((item) => (
-                      <button
-                        type="button"
-                        className="assistant-card"
-                        key={item.key}
-                        onClick={() => handleOpenAssistantChat(item)}
-                      >
-                        <span
-                          className="assistant-card-icon"
-                          style={{ background: item.iconBg }}
-                        >
-                          <img src={item.icon} alt="" />
-                        </span>
-                        <span className="assistant-card-body">
-                          <span className="assistant-card-title">{item.title}</span>
-                          <span className="assistant-card-desc">{item.desc}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
               </div>
             </section>
             )
@@ -465,6 +467,9 @@ export default function App() {
                 pending={pending}
                 onSend={sendMessage}
                 onStop={stopReply}
+                messages={activeConversation?.messages || []}
+                modelName={health.model}
+                modelOnline={health.status === 'online' && health.modelReady}
                 placeholder="有问题尽管问"
               />
             </div>
@@ -497,35 +502,13 @@ function ErrorBanner({ error, pending, onRetry, onCheck }) {
 }
 
 function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </svg>
-  );
+  return <Menu size={20} strokeWidth={1.8} />;
 }
 
 function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 9a6 6 0 10-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
-      <path d="M10.5 19a1.8 1.8 0 003 0" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
+  return <Bell size={20} strokeWidth={1.7} />;
 }
 
 function AlertIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="error-icon">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v4.5M12 16h.01" />
-    </svg>
-  );
+  return <CircleAlert size={18} strokeWidth={1.8} className="error-icon" />;
 }
