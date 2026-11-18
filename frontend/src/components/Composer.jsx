@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import lottie from 'lottie-web';
-import { Plus, Lightbulb, Globe, Sparkles, Mic, ArrowUp, Square, FileText, X as XIcon } from 'lucide-react';
+import { Plus, Sparkles, Mic, ArrowUp, Square, FileText, X as XIcon } from 'lucide-react';
 import waveformAnimation from '../assets/waveform.json';
 
 const TEXT_EXTENSIONS = new Set([
@@ -173,48 +173,37 @@ export default function Composer({ onSend, onStop, pending, placeholder, variant
           >
             <PlusIcon />
           </button>
-          {[
-            { key: 'think', label: '思考', icon: <ThinkIcon /> },
-            { key: 'web', label: '联网', icon: <GlobeIcon /> },
-            { key: 'skill', label: '技能', icon: <SkillIcon /> },
-          ].map((tool) => (
-            <div
-              key={tool.key}
-              className={tool.key === 'skill' ? 'skill-menu-wrap' : undefined}
+          <div className="skill-menu-wrap">
+            <button
+              type="button"
+              className={`tool-chip ${activeTools.skill ? 'active' : ''}`}
+              aria-pressed={Boolean(activeTools.skill)}
+              onClick={() => {
+                if (activeTools.skill) {
+                  setSelectedSkill('');
+                }
+                setActiveTools((prev) => ({ ...prev, skill: !prev.skill }));
+              }}
             >
-              <button
-                type="button"
-                className={`tool-chip ${activeTools[tool.key] ? 'active' : ''}`}
-                aria-pressed={Boolean(activeTools[tool.key])}
-                onClick={() => {
-                  if (tool.key === 'skill' && activeTools.skill) {
-                    setSelectedSkill('');
-                  }
-                  setActiveTools((prev) => ({ ...prev, [tool.key]: !prev[tool.key] }));
-                }}
-              >
-                <span className="chip-icon">{tool.icon}</span>
-                <span>
-                  {tool.key === 'skill' ? selectedSkill || tool.label : tool.label}
-                </span>
-              </button>
-              {tool.key === 'skill' && (
-                <div className="skill-menu" role="menu">
-                  {SKILL_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={`skill-menu-item ${selectedSkill === option ? 'selected' : ''}`}
-                      role="menuitem"
-                      onClick={() => handleSelectSkill(option)}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <span className="chip-icon">
+                <SkillIcon />
+              </span>
+              <span>{selectedSkill || '技能'}</span>
+            </button>
+            <div className="skill-menu" role="menu">
+              {SKILL_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`skill-menu-item ${selectedSkill === option ? 'selected' : ''}`}
+                  role="menuitem"
+                  onClick={() => handleSelectSkill(option)}
+                >
+                  {option}
+                </button>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
 
         <div className="composer-actions">
@@ -284,14 +273,6 @@ export default function Composer({ onSend, onStop, pending, placeholder, variant
 
 function PlusIcon() {
   return <Plus size={14} strokeWidth={1.8} />;
-}
-
-function ThinkIcon() {
-  return <Lightbulb size={14} strokeWidth={1.6} />;
-}
-
-function GlobeIcon() {
-  return <Globe size={14} strokeWidth={1.6} />;
 }
 
 function SkillIcon() {

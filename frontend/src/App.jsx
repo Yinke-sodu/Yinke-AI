@@ -6,6 +6,7 @@ import Composer from './components/Composer';
 import ConfirmDialog from './components/ConfirmDialog';
 import Toast from './components/Toast';
 import AssistantPage from './components/AssistantPage';
+import SettingsPage from './components/SettingsPage';
 
 const STORAGE_KEY = 'local-ai-chat:conversations';
 const DEFAULT_MODEL = 'qwen3.5:4b';
@@ -61,7 +62,7 @@ export default function App() {
   const [page, setPage] = useState('chat');
   const [draftAssistant, setDraftAssistant] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [clearAllConfirm, setClearAllConfirm] = useState(false);
+  const [clearGroupTarget, setClearGroupTarget] = useState(null);
   const [health, setHealth] = useState({ status: 'checking', model: DEFAULT_MODEL, modelReady: true });
   const [toastVisible, setToastVisible] = useState(false);
   const lastFailedMessage = useRef('');
@@ -255,17 +256,27 @@ export default function App() {
     setDeleteTarget(null);
   }
 
-  function requestClearAll() {
-    if (conversations.length === 0) return;
-    setClearAllConfirm(true);
+  function requestClearGroup(group) {
+    const hasItems = conversations.some((item) =>
+      group === 'project' ? Boolean(item.assistant) : !item.assistant,
+    );
+    if (!hasItems) return;
+    setClearGroupTarget(group);
   }
 
-  function confirmClearAll() {
-    setConversations([]);
-    setActiveId(null);
-    setDraftAssistant(null);
-    setError('');
-    setClearAllConfirm(false);
+  function confirmClearGroup() {
+    const group = clearGroupTarget;
+    if (!group) return;
+    const belongsToGroup = (item) =>
+      group === 'project' ? Boolean(item.assistant) : !item.assistant;
+
+    setConversations((prev) => prev.filter((item) => !belongsToGroup(item)));
+    if (activeConversation && belongsToGroup(activeConversation)) {
+      setActiveId(null);
+      setDraftAssistant(null);
+      setError('');
+    }
+    setClearGroupTarget(null);
   }
 
   function handleRetry() {
@@ -295,9 +306,13 @@ export default function App() {
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
         onDelete={requestDeleteConversation}
-        onClearAll={requestClearAll}
+        onClearGroup={requestClearGroup}
         onOpenAssistant={() => {
           setPage('assistant');
+          setSidebarOpen(false);
+        }}
+        onOpenSettings={() => {
+          setPage('settings');
           setSidebarOpen(false);
         }}
         onClose={() => setSidebarOpen(false)}
@@ -322,13 +337,13 @@ export default function App() {
         />
       )}
 
-      {clearAllConfirm && (
+      {clearGroupTarget && (
         <ConfirmDialog
-          title="确定清空全部对话?"
+          title={`确定清空全部${clearGroupTarget === 'project' ? '项目' : '对话'}?`}
           description="清空后，所有聊天记录将不可恢复。"
           confirmText="全部清除"
-          onCancel={() => setClearAllConfirm(false)}
-          onConfirm={confirmClearAll}
+          onCancel={() => setClearGroupTarget(null)}
+          onConfirm={confirmClearGroup}
         />
       )}
 
@@ -378,6 +393,8 @@ export default function App() {
 
         {page === 'assistant' ? (
           <AssistantPage onOpen={handleOpenAssistantChat} />
+        ) : page === 'settings' ? (
+          <SettingsPage />
         ) : (
           <>
             <div className="chat-scroll">

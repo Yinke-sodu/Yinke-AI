@@ -1,4 +1,12 @@
-import { PanelLeft, Plus, Lightbulb, Clock, ChevronRight, Trash2, Settings } from 'lucide-react';
+import {
+  PanelLeft,
+  MessageSquarePlus,
+  Lightbulb,
+  Compass,
+  ChevronRight,
+  Trash2,
+  Settings,
+} from 'lucide-react';
 
 export default function Sidebar({
   open,
@@ -7,11 +15,16 @@ export default function Sidebar({
   onNewChat,
   onSelect,
   onDelete,
-  onClearAll,
+  onClearGroup,
   onOpenAssistant,
+  onOpenSettings,
   onClose,
 }) {
   const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
+  const groups = [
+    { key: 'project', title: '项目', items: sorted.filter((item) => item.assistant) },
+    { key: 'chat', title: '对话', items: sorted.filter((item) => !item.assistant) },
+  ];
 
   return (
     <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
@@ -30,73 +43,86 @@ export default function Sidebar({
         </button>
       </div>
 
-      <button type="button" className="new-chat-button" onClick={onNewChat}>
-        <PlusIcon />
-        <span>新对话</span>
-      </button>
-
-      <nav className="side-nav">
-        <button type="button" className="side-nav-item active" onClick={onOpenAssistant}>
-          <BulbIcon />
-          <span>个人助手</span>
-          <ChevronRightIcon />
-        </button>
-        <button type="button" className="side-nav-item">
-          <ClockIcon />
-          <span>定时任务</span>
-          <ChevronRightIcon />
-        </button>
-      </nav>
-
-      <div className="history-label">
-        <span>问答历史</span>
-        <button
-          type="button"
-          className="history-clear"
-          aria-label="全部清除"
-          onClick={onClearAll}
-        >
-          <TrashIcon />
-          <span className="history-clear-tooltip" role="tooltip">全部清除</span>
+      <div className="new-chat-wrap">
+        <button type="button" className="new-chat-button" onClick={onNewChat}>
+          <MessageSquarePlus size={16} strokeWidth={1.5} />
+          <span>新对话</span>
         </button>
       </div>
 
-      <nav className="conversation-list">
-        {sorted.map((conversation) => (
-          <div
-            key={conversation.id}
-            className={`conversation-item ${conversation.id === activeId ? 'active' : ''}`}
-          >
-            <button
-              type="button"
-              className="conversation-button"
-              onClick={() => onSelect(conversation.id)}
-            >
-              <img
-                className="conversation-avatar"
-                src={conversation.assistant?.icon || '/assets/conversation-avatar.png'}
-                alt=""
-                style={{ background: conversation.assistant?.iconBg || '#fff' }}
-              />
-              <span className="conversation-title">{conversation.title}</span>
-            </button>
-            <button
-              type="button"
-              className="conversation-delete"
-              aria-label={`删除对话：${conversation.title}`}
-              onClick={() => onDelete(conversation.id)}
-            >
-              <TrashIcon />
-            </button>
-          </div>
-        ))}
+      <nav className="side-nav">
+        <button type="button" className="side-nav-item" onClick={onOpenAssistant}>
+          <Lightbulb size={15} strokeWidth={1.5} />
+          <span>个人助手</span>
+          <ChevronRight size={15} strokeWidth={1.5} />
+        </button>
+        <button type="button" className="side-nav-item">
+          <Compass size={15} strokeWidth={1.5} />
+          <span>定时任务</span>
+          <ChevronRight size={15} strokeWidth={1.5} />
+        </button>
       </nav>
 
+      <div className="side-sections">
+        {groups.map((group) => (
+          <section className="side-group" key={group.key}>
+            <div className="group-header">
+              <span className="group-title">{group.title}</span>
+              <button
+                type="button"
+                className="group-clear"
+                aria-label={`全部清除${group.title}`}
+                onClick={() => onClearGroup(group.key)}
+              >
+                <Trash2 size={16} strokeWidth={1.3} />
+                <span className="group-clear-tooltip" role="tooltip">全部清除</span>
+              </button>
+            </div>
+
+            <nav className="conversation-list">
+              {group.items.length === 0 ? (
+                <p className="conversation-empty">暂无{group.title}</p>
+              ) : (
+                group.items.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className={`conversation-item ${conversation.id === activeId ? 'active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="conversation-button"
+                      onClick={() => onSelect(conversation.id)}
+                    >
+                      <img
+                        className="conversation-avatar"
+                        src={conversation.assistant?.icon || '/assets/conversation-avatar.png'}
+                        alt=""
+                        style={{ background: conversation.assistant?.iconBg || '#d5d7ef' }}
+                      />
+                      <span className="conversation-title">{conversation.title}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="conversation-delete"
+                      aria-label={`删除对话：${conversation.title}`}
+                      onClick={() => onDelete(conversation.id)}
+                    >
+                      <Trash2 size={16} strokeWidth={1.3} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </nav>
+          </section>
+        ))}
+      </div>
+
       <div className="sidebar-foot">
-        <button type="button" className="settings-row">
-          <GearIcon />
+        <span className="sidebar-divider" />
+        <button type="button" className="settings-row" onClick={onOpenSettings}>
+          <Settings size={16} strokeWidth={1.6} />
           <span>设置</span>
-          <ChevronRightIcon />
+          <ChevronRight size={15} strokeWidth={1.5} />
         </button>
       </div>
     </aside>
@@ -105,28 +131,4 @@ export default function Sidebar({
 
 function PanelLeftIcon() {
   return <PanelLeft size={18} strokeWidth={1.7} />;
-}
-
-function PlusIcon() {
-  return <Plus size={16} strokeWidth={2} />;
-}
-
-function BulbIcon() {
-  return <Lightbulb size={16} strokeWidth={1.6} />;
-}
-
-function ClockIcon() {
-  return <Clock size={16} strokeWidth={1.6} />;
-}
-
-function ChevronRightIcon() {
-  return <ChevronRight size={14} strokeWidth={1.8} />;
-}
-
-function TrashIcon() {
-  return <Trash2 size={14} strokeWidth={1.7} />;
-}
-
-function GearIcon() {
-  return <Settings size={16} strokeWidth={1.6} />;
 }
