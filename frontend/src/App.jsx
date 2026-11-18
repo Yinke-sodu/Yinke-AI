@@ -59,6 +59,7 @@ export default function App() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mode, setMode] = useState(() => localStorage.getItem('geak-sidebar-mode') || 'lite');
   const [page, setPage] = useState('chat');
   const [draftAssistant, setDraftAssistant] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -256,26 +257,18 @@ export default function App() {
     setDeleteTarget(null);
   }
 
-  function requestClearGroup(group) {
-    const hasItems = conversations.some((item) =>
-      group === 'project' ? Boolean(item.assistant) : !item.assistant,
-    );
-    if (!hasItems) return;
-    setClearGroupTarget(group);
+  function requestClearAll() {
+    if (conversations.length === 0) return;
+    setClearGroupTarget('all');
   }
 
   function confirmClearGroup() {
-    const group = clearGroupTarget;
-    if (!group) return;
-    const belongsToGroup = (item) =>
-      group === 'project' ? Boolean(item.assistant) : !item.assistant;
+    if (!clearGroupTarget) return;
 
-    setConversations((prev) => prev.filter((item) => !belongsToGroup(item)));
-    if (activeConversation && belongsToGroup(activeConversation)) {
-      setActiveId(null);
-      setDraftAssistant(null);
-      setError('');
-    }
+    setConversations([]);
+    setActiveId(null);
+    setDraftAssistant(null);
+    setError('');
     setClearGroupTarget(null);
   }
 
@@ -303,10 +296,15 @@ export default function App() {
         open={sidebarOpen}
         conversations={conversations}
         activeId={activeId}
+        mode={mode}
+        onModeChange={(next) => {
+          setMode(next);
+          localStorage.setItem('geak-sidebar-mode', next);
+        }}
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
         onDelete={requestDeleteConversation}
-        onClearGroup={requestClearGroup}
+        onClearAll={requestClearAll}
         onOpenAssistant={() => {
           setPage('assistant');
           setSidebarOpen(false);
@@ -339,7 +337,7 @@ export default function App() {
 
       {clearGroupTarget && (
         <ConfirmDialog
-          title={`确定清空全部${clearGroupTarget === 'project' ? '项目' : '对话'}?`}
+          title="确定清空全部历史对话?"
           description="清空后，所有聊天记录将不可恢复。"
           confirmText="全部清除"
           onCancel={() => setClearGroupTarget(null)}
@@ -359,17 +357,15 @@ export default function App() {
           </button>
 
           {page === 'chat' && activeConversation && (
-            <span className="topbar-title" title={activeConversation.title}>
-              {activeConversation.assistant && (
-                <img
-                  className="topbar-assistant-avatar"
-                  src={activeConversation.assistant.icon}
-                  alt=""
-                  style={{ background: activeConversation.assistant.iconBg }}
-                />
+            <div className="topbar-lead">
+              {mode === 'standard' && (
+                <img className="topbar-brand-logo" src="/assets/logo.png" alt="GEAK AI" />
               )}
-              {activeConversation.title}
-            </span>
+              {mode === 'lite' && <span className="topbar-mode-tag">轻量对话</span>}
+              <span className="topbar-title" title={activeConversation.title}>
+                {activeConversation.title}
+              </span>
+            </div>
           )}
 
           <div className="topbar-spacer" />
